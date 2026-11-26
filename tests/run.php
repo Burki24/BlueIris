@@ -199,6 +199,19 @@ try {
     check('ERROR', BlueIrisGateway_Login($otherGateway), 'HTTPS rejects the HTTP fixture without falling back');
     check(false, IPS_GetInstance($otherGateway)['InstanceStatus'] === 102, 'The HTTPS connection failure is visible');
 
+    IPS_SetProperty($otherGateway, 'TlsCertificate', "-----BEGIN CERTIFICATE-----\ninvalid\n-----END CERTIFICATE-----");
+    IPS_ApplyChanges($otherGateway);
+    check(206, IPS_GetInstance($otherGateway)['InstanceStatus'], 'Malformed PEM is rejected during HTTPS configuration');
+    check(0, $timer->invoke($otherGatewayInterface, 'SyncData'), 'Malformed PEM disables automatic requests');
+    check('ERROR', BlueIrisGateway_Login($otherGateway), 'The API does not fall back when a PEM is invalid');
+    $link = json_decode($otherGatewayInterface->ForwardData($cameraLinkRequest), true);
+    check(null, $link['link'], 'Malformed PEM blocks stream setup instead of using default trust');
+    check(false, array_key_exists('tlsCertificate', $link), 'Malformed PEM is not forwarded to the camera');
+
+    IPS_SetProperty($otherGateway, 'Protocol', 'http');
+    IPS_ApplyChanges($otherGateway);
+    check('http://127.0.0.1:' . $port, json_decode($otherGatewayInterface->ForwardData($cameraLinkRequest), true)['link'], 'The PEM field does not affect HTTP');
+
     IPS_SetProperty($otherGateway, 'Protocol', 'unsupported');
     IPS_ApplyChanges($otherGateway);
     check(201, IPS_GetInstance($otherGateway)['InstanceStatus'], 'Invalid protocols are rejected');

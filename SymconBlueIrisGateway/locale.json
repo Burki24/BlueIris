@@ -3,6 +3,7 @@
     "de": {
 	  	"IP-Address": "IP-Adresse",
         "Protocol": "Protokoll",
+        "HTTPS certificate (PEM, optional)": "HTTPS-Zertifikat (PEM, optional)",
 		"Port": "Port",
 		"Timeout": "Timeout",
         "Sec.": "Sek.",

@@ -12,6 +12,13 @@
             ]
         },
         { "type": "NumberSpinner", "name": "Port", "caption": "Port" },
+        {
+            "type": "ValidationTextBox",
+            "name": "TlsCertificate",
+            "caption": "HTTPS certificate (PEM, optional)",
+            "multiline": true,
+            "validate": "^\\s*(?:-----BEGIN CERTIFICATE-----[\\sA-Za-z0-9+/=]+-----END CERTIFICATE-----\\s*)*$"
+        },
         { "type": "NumberSpinner", "name": "Timeout", "caption": "Timeout"},
         { "type": "IntervalBox", "name": "Interval", "caption": "Sec." },
         { "type": "ValidationTextBox", "name": "Username", "caption": "Username" },

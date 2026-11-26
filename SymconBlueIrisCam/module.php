@@ -1,8 +1,10 @@
 <?php
 
     require_once __DIR__ . '/../libs/DataMessage.php';
+require_once __DIR__ . '/../libs/TlsTrust.php';
 
     use BlueIris\DataMessage;
+use BlueIris\TlsTrust;
 
     // Klassendefinition
     class SymconBlueIrisCam extends IPSModule {
@@ -265,13 +267,13 @@
                 return;
             }
 
-            $url = $this->GetStreamURL();
-            if ($url === null || !$this->CanOpenStream($url)) {
+            $stream = $this->GetStreamConnection();
+            if ($stream === null || !$this->CanOpenStream($stream['url'], $stream['tlsCertificate'])) {
                 return;
             }
 
             $mediaID = IPS_CreateMedia(3);
-            if (!IPS_SetMediaFile($mediaID, $url, true)) {
+            if (!IPS_SetMediaFile($mediaID, $stream['url'], true)) {
                 IPS_DeleteMedia($mediaID, false);
                 return;
             }
@@ -287,15 +289,15 @@
                 return false;
             }
 
-            $url = $this->GetStreamURL();
-            if ($url === null || !$this->CanOpenStream($url)) {
+            $stream = $this->GetStreamConnection();
+            if ($stream === null || !$this->CanOpenStream($stream['url'], $stream['tlsCertificate'])) {
                 return false;
             }
 
-            return IPS_SetMediaFile($mediaID, $url, true);
+            return IPS_SetMediaFile($mediaID, $stream['url'], true);
         }
 
-        private function GetStreamURL(): ?string
+        private function GetStreamConnection(): ?array
         {
             $shortName = $this->ReadPropertyString("ShortName");
             if ($shortName === '') {
@@ -307,6 +309,10 @@
             if (!is_string($stream['link'] ?? null) || $stream['link'] === '') {
                 return null;
             }
+            $certificate = $stream['tlsCertificate'] ?? '';
+            if (!is_string($certificate)) {
+                return null;
+            }
 
             $url = $stream['link'] . '/mjpg/' . rawurlencode($shortName) . '/video.mjpg';
             $user = $stream['user'] ?? '';
@@ -314,10 +320,10 @@
             if (is_string($user) && $user !== '' && is_string($password) && $password !== '') {
                 $url .= '?' . http_build_query(['user' => $user, 'pw' => $password], '', '&', PHP_QUERY_RFC3986);
             }
-            return $url;
+            return ['url' => $url, 'tlsCertificate' => $certificate];
         }
 
-        private function CanOpenStream(string $url): bool
+        private function CanOpenStream(string $url, string $certificate): bool
         {
             if (strpos($url, 'https://') !== 0) {
                 return true;
@@ -342,6 +348,9 @@
                     return 0;
                 }
             ]);
+            if (!TlsTrust::configure($handle, $certificate)) {
+                return false;
+            }
             curl_exec($handle);
 
             $type = (string) curl_getinfo($handle, CURLINFO_CONTENT_TYPE);

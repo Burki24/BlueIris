@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../libs/DataMessage.php';
+require_once __DIR__ . '/../libs/TlsTrust.php';
 
 use BlueIris\DataMessage;
+use BlueIris\TlsTrust;
 
 class BlueIrisGateway extends IPSModule
 {
@@ -15,6 +17,7 @@ class BlueIrisGateway extends IPSModule
         $this->RegisterPropertyString('IPAddress', '192.168.178.1');
         $this->RegisterPropertyInteger('Port', 81);
         $this->RegisterPropertyString('Protocol', 'http');
+        $this->RegisterPropertyString('TlsCertificate', '');
         $this->RegisterPropertyInteger('Timeout', 3);
         $this->RegisterPropertyInteger('Interval', 10);
         $this->RegisterPropertyString('Username', 'admin');
@@ -29,6 +32,11 @@ class BlueIrisGateway extends IPSModule
         parent::ApplyChanges();
         $this->SetBuffer('BlueIrisSession', '');
         if ($this->GetBaseURL() === null) {
+            $this->SetTimerInterval('SyncData', 0);
+            return;
+        }
+        if (!TlsTrust::isValid($this->GetTlsCertificate())) {
+            $this->Fail(206, 'Das hinterlegte PEM-Zertifikat ist ungültig oder wird von der PHP-Laufzeit nicht unterstützt.');
             $this->SetTimerInterval('SyncData', 0);
             return;
         }
@@ -52,11 +60,18 @@ class BlueIrisGateway extends IPSModule
 
         switch ($message['cmd'] ?? null) {
             case 'GetLink':
-                return json_encode([
+                $certificate = $this->GetTlsCertificate();
+                $link = [
                     'link' => $this->GetBaseURL(),
                     'user' => $this->ReadPropertyString('Username'),
                     'pw'   => $this->ReadPropertyString('Password')
-                ]);
+                ];
+                if (!TlsTrust::isValid($certificate)) {
+                    $link['link'] = null;
+                } elseif ($certificate !== '' && $link['link'] !== null) {
+                    $link['tlsCertificate'] = $certificate;
+                }
+                return json_encode($link);
             case 'CamConfig':
                 return $this->SendCommand('camconfig', $data);
             case 'AlertList':
@@ -315,6 +330,10 @@ class BlueIrisGateway extends IPSModule
             $options[CURLOPT_COOKIE] = 'PHPSESSID=' . $session;
         }
         curl_setopt_array($curl, $options);
+        if (!TlsTrust::configure($curl, $this->GetTlsCertificate())) {
+            $this->Fail(206, 'Das hinterlegte PEM-Zertifikat konnte nicht für die HTTPS-Verbindung aktiviert werden.');
+            return null;
+        }
 
         $raw = curl_exec($curl);
         if ($raw === false) {
@@ -342,6 +361,11 @@ class BlueIrisGateway extends IPSModule
         }
 
         return ['raw' => $raw, 'body' => $body];
+    }
+
+    private function GetTlsCertificate(): string
+    {
+        return $this->ReadPropertyString('Protocol') === 'https' ? trim($this->ReadPropertyString('TlsCertificate')) : '';
     }
 
     private function Fail(int $status, string $message): void

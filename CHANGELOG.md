@@ -3,6 +3,7 @@
 ## Neu
 
 - Gateway und MJPEG-Stream können über HTTPS mit Zertifikatsprüfung verbunden werden. Vorhandene Stream-Medien lassen sich über ihre bisherige Medien-ID auf die neue Adresse umstellen.
+- Das Gateway kann ein öffentliches PEM-Zertifikat für die HTTPS-API und die Prüfung von MJPEG-Streams verwenden.
 
 ## Fixes
 

@@ -38,7 +38,9 @@ Dieses Modul dient zum Abrufen und Steuern der [Blue Iris Software](https://blue
 ## 4. Hinweise zur Verwendung
 Dieses Modul wird durch den Konfigurator automatisch angelegt.
 
-Für HTTPS wähle **Protokoll** → **HTTPS** und trage den dafür in Blue Iris eingerichteten Port ein. Der in **IP-Adresse** eingetragene Hostname bzw. die IP-Adresse muss im Zertifikat stehen. Die ausstellende CA muss auf dem Symcon-System vertrauenswürdig sein. Bei einer fehlgeschlagenen TLS- oder Zertifikatsprüfung zeigt das Gateway einen HTTPS-Fehler an.
+Für HTTPS wähle **Protokoll** → **HTTPS** und trage den dafür in Blue Iris eingerichteten Port ein. Der in **IP-Adresse** eingetragene Hostname bzw. die IP-Adresse muss zum Zertifikat passen. Bei einer fehlgeschlagenen TLS- oder Zertifikatsprüfung zeigt das Gateway einen HTTPS-Fehler an.
+
+Für ein selbstsigniertes Serverzertifikat füge unter **HTTPS-Zertifikat (PEM, optional)** den öffentlichen Zertifikatstext mit `BEGIN CERTIFICATE` und `END CERTIFICATE` ein. Für ein von einer privaten CA ausgestelltes Serverzertifikat hinterlege das öffentliche CA-Zertifikat im PEM-Format. Die PFX mit dem privaten Schlüssel bleibt auf dem Blue-Iris-Server. Das Modul verwendet das PEM für die JSON-API und die HTTPS-Prüfung der MJPEG-Adresse. Ein leeres Feld verwendet den Standard-Zertifikatsspeicher von Symcon. Das PEM-Feld benötigt PHP ab 8.2 mit OpenSSL und cURL mit Unterstützung für `CURLOPT_CAINFO_BLOB`.
 
 ## 5. Einrichten im Modul
     
@@ -89,6 +91,7 @@ Eigenschaften des 'Device' für Get/SetProperty-Befehle:
 |:-----------:|:------:|:-------------:|:-------------------------------------------------------------------------------------------------------------------:|
 |  IPAddress  | string | 192.168.178.1 |                                         IP-Adresse des BlueIris Webservers                                          |
 |  Protocol   | string |  `http`      |  `http` oder `https` für JSON-API und MJPEG                                                               |
+|  TlsCertificate | string | leer | Öffentliches PEM-Zertifikat für die HTTPS-Verbindungen des Moduls |
 |    Port     |  int   |      81       |                                            Port des BlueIris Webservers                                             |
 |   Timeout   |  int   |       3       |                              Maximale Dauer pro HTTP-Anfrage in Sekunden                               |
 |  Username   | string |     admin     | Benutzername für das BlueIris Webinterface<br/>Für die konfiguration über die Webapi sind Adminrechte erforderlich! |
