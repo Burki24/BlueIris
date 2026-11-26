@@ -40,7 +40,9 @@ Dieses Modul wird durch den Konfigurator automatisch angelegt.
 
 Für HTTPS wähle **Protokoll** → **HTTPS** und trage den dafür in Blue Iris eingerichteten Port ein. Der in **IP-Adresse** eingetragene Hostname bzw. die IP-Adresse muss zum Zertifikat passen. Bei einer fehlgeschlagenen TLS- oder Zertifikatsprüfung zeigt das Gateway einen HTTPS-Fehler an.
 
-Für ein selbstsigniertes Serverzertifikat füge unter **HTTPS-Zertifikat (PEM, optional)** den öffentlichen Zertifikatstext mit `BEGIN CERTIFICATE` und `END CERTIFICATE` ein. Für ein von einer privaten CA ausgestelltes Serverzertifikat hinterlege das öffentliche CA-Zertifikat im PEM-Format. Die PFX mit dem privaten Schlüssel bleibt auf dem Blue-Iris-Server. Das Modul verwendet das PEM für die JSON-API und die HTTPS-Prüfung der MJPEG-Adresse. Ein leeres Feld verwendet den Standard-Zertifikatsspeicher von Symcon. Das PEM-Feld benötigt PHP ab 8.2 mit OpenSSL und cURL mit Unterstützung für `CURLOPT_CAINFO_BLOB`.
+Für ein selbstsigniertes Serverzertifikat wähle **HTTPS-Zertifikat importieren**. Wähle die öffentliche Zertifikatsdatei im PEM-Format aus und bestätige mit **Importieren**. Für ein von einer privaten CA ausgestelltes Serverzertifikat importiere das öffentliche CA-Zertifikat. Der Dialog akzeptiert PEM-Dateien mit der Endung `.pem`, `.crt` oder `.cer` bis 64 KiB. Die PFX mit dem privaten Schlüssel bleibt auf dem Blue-Iris-Server.
+
+Unter **PEM-Zertifikat manuell bearbeiten** kannst du den Text mit `BEGIN CERTIFICATE` und `END CERTIFICATE` auch einfügen, ändern oder leer lassen. Speichere manuelle Änderungen mit **Übernehmen**. Ein leeres Feld verwendet den Standard-Zertifikatsspeicher von Symcon. Das Modul verwendet das hinterlegte PEM für die JSON-API und die HTTPS-Prüfung der MJPEG-Adresse. Dafür sind PHP ab 8.2, OpenSSL und cURL mit `CURLOPT_CAINFO_BLOB` erforderlich.
 
 ## 5. Einrichten im Modul
     

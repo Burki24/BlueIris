@@ -248,6 +248,46 @@ try {
         check(false, str_contains($debug, $secret), 'Gateway diagnostics omit credentials and sessions');
     }
 
+    $certificate = <<<'PEM'
+-----BEGIN CERTIFICATE-----
+MIIBlTCCATugAwIBAgIUV7N6rT1vcxEdHac5VsRBE4OuWkkwCgYIKoZIzj0EAwIw
+IDEeMBwGA1UEAwwVYmx1ZWlyaXMtdGVzdC5pbnZhbGlkMB4XDTI2MTEyNjE1MjM1
+OVoXDTI3MTEyNjE1MjM1OVowIDEeMBwGA1UEAwwVYmx1ZWlyaXMtdGVzdC5pbnZh
+bGlkMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEPw1ii6eoPU6yP/SeLlTzF58D
+SDY6z4hp7hsbwO+Q5A8WyQxwwwnV3gKbFb02KtEsXWEa2AsRoafjlmFslvVbL6NT
+MFEwHQYDVR0OBBYEFOSJ1OvhZEeuffgEAHGsanGxjlCYMB8GA1UdIwQYMBaAFOSJ
+1OvhZEeuffgEAHGsanGxjlCYMA8GA1UdEwEB/wQFMAMBAf8wCgYIKoZIzj0EAwID
+SAAwRQIgZVMHAJw1jrzp3Ky3Ax8PPPtKKTH20PcrX3xaB9yyp9gCIQCmLWykdbsv
+qjcZLMmuZA6w2nheXL0WAypCegtcvuNB6w==
+-----END CERTIFICATE-----
+PEM;
+    $form = json_decode($gatewayInterface->GetConfigurationForm(), true, 512, JSON_THROW_ON_ERROR);
+    $labels = array_column($form['elements'], 'caption', 'name');
+    check('HTTPS uses the Symcon trust store', $labels['TlsCertificateStatus'], 'Without a custom certificate the form shows default trust');
+    $panels = array_values(array_filter($form['elements'], static fn (array $field): bool => $field['type'] === 'ExpansionPanel'));
+    check(false, $panels[0]['expanded'], 'Manual PEM input starts collapsed');
+    check('TlsCertificate', $panels[0]['items'][0]['name'], 'Manual editing keeps the existing property');
+    check('SelectFile', $form['actions'][1]['popup']['items'][1]['type'], 'The import dialog offers a file selector');
+
+    $upload = base64_encode("\xEF\xBB\xBF" . $certificate . "\r\n");
+    IPS_SetProperty($gateway, 'Interval', 11);
+    check('Apply or discard pending gateway changes before importing.', BlueIrisGateway_ImportTlsCertificate($gateway, $upload), 'Import preserves unrelated pending edits');
+    check('', json_decode(IPS_GetConfiguration($gateway), true)['TlsCertificate'], 'Pending changes block certificate replacement');
+    IPS_ResetChanges($gateway);
+
+    check('', BlueIrisGateway_ImportTlsCertificate($gateway, $upload), 'Import accepts a public PEM with a UTF-8 BOM');
+    $saved = IPS_GetConfiguration($gateway);
+    check($certificate, json_decode($saved, true)['TlsCertificate'], 'Import saves only the decoded certificate');
+    $form = json_decode($gatewayInterface->GetConfigurationForm(), true, 512, JSON_THROW_ON_ERROR);
+    $labels = array_column($form['elements'], 'caption', 'name');
+    check('PEM certificate stored for HTTPS', $labels['TlsCertificateStatus'], 'The saved certificate has a compact status');
+
+    $invalid = 'The file must contain only public PEM certificates supported by this PHP runtime.';
+    check($invalid, BlueIrisGateway_ImportTlsCertificate($gateway, '!!'), 'Invalid base64 is rejected');
+    check($invalid, BlueIrisGateway_ImportTlsCertificate($gateway, base64_encode($certificate . "\n-----BEGIN PRIVATE KEY-----\nTEST\n-----END PRIVATE KEY-----")), 'Files with a private key section are rejected');
+    check('The certificate file exceeds 64 KiB.', BlueIrisGateway_ImportTlsCertificate($gateway, base64_encode(str_repeat('X', 64 * 1024 + 1))), 'Oversized files are rejected');
+    check($saved, IPS_GetConfiguration($gateway), 'Rejected uploads preserve the saved certificate and surrounding settings');
+
     echo "BlueIris integration checks passed.\n";
 } finally {
     proc_terminate($fixture);

@@ -12,23 +12,45 @@
             ]
         },
         { "type": "NumberSpinner", "name": "Port", "caption": "Port" },
-        {
-            "type": "ValidationTextBox",
-            "name": "TlsCertificate",
-            "caption": "HTTPS certificate (PEM, optional)",
-            "multiline": true,
-            "validate": "^\\s*(?:-----BEGIN CERTIFICATE-----[\\sA-Za-z0-9+/=]+-----END CERTIFICATE-----\\s*)*$"
-        },
         { "type": "NumberSpinner", "name": "Timeout", "caption": "Timeout"},
         { "type": "IntervalBox", "name": "Interval", "caption": "Sec." },
         { "type": "ValidationTextBox", "name": "Username", "caption": "Username" },
         { "type": "PasswordTextBox", "name": "Password", "caption": "Password"},
-        { "type": "CheckBox", "name": "Debug", "caption": "Debug"}
+        { "type": "CheckBox", "name": "Debug", "caption": "Debug" },
+        { "type": "Label", "name": "TlsCertificateStatus", "caption": "HTTPS uses the Symcon trust store" },
+        {
+            "type": "ExpansionPanel",
+            "caption": "Edit PEM manually",
+            "expanded": false,
+            "items": [
+                {
+                    "type": "ValidationTextBox",
+                    "name": "TlsCertificate",
+                    "caption": "HTTPS certificate (PEM, optional)",
+                    "multiline": true,
+                    "width": "100%",
+                    "validate": "^\\s*(?:-----BEGIN CERTIFICATE-----[\\sA-Za-z0-9+/=]+-----END CERTIFICATE-----\\s*)*$"
+                }
+            ]
+        }
     ],
     "actions":
     [
-        { "type": "Button", "label": "Sync Data", "onClick": "BlueIrisGateway_SyncData($id);" }
-
+        { "type": "Button", "label": "Sync Data", "onClick": "BlueIrisGateway_SyncData($id);" },
+        {
+            "type": "PopupButton",
+            "caption": "Import HTTPS certificate",
+            "popup": {
+                "caption": "Import HTTPS certificate",
+                "items": [
+                    { "type": "Label", "caption": "Choose a public PEM certificate. Import replaces the certificate for this gateway." },
+                    { "type": "SelectFile", "name": "TlsCertificateFile", "caption": "PEM certificate file", "extensions": ".pem,.crt,.cer" }
+                ],
+                "buttons": [
+                    { "caption": "Import", "onClick": "echo BlueIrisGateway_ImportTlsCertificate($id, $TlsCertificateFile ?? '');" }
+                ]
+            }
+        }
     ],
     "status":
     [

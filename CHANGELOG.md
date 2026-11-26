@@ -4,6 +4,7 @@
 
 - Gateway und MJPEG-Stream können über HTTPS mit Zertifikatsprüfung verbunden werden. Vorhandene Stream-Medien lassen sich über ihre bisherige Medien-ID auf die neue Adresse umstellen.
 - Das Gateway kann ein öffentliches PEM-Zertifikat für die HTTPS-API und die Prüfung von MJPEG-Streams verwenden.
+- Das Gateway importiert öffentliche PEM-Zertifikatdateien über die Symcon-Konsole. Der manuelle PEM-Editor ist standardmäßig eingeklappt.
 
 ## Fixes
 

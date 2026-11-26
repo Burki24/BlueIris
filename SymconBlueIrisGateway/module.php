@@ -10,6 +10,8 @@ use BlueIris\TlsTrust;
 
 class BlueIrisGateway extends IPSModule
 {
+    private const MAX_CERTIFICATE_FILE_SIZE = 64 * 1024;
+
     public function Create()
     {
         parent::Create();
@@ -43,6 +45,66 @@ class BlueIrisGateway extends IPSModule
 
         $this->SetStatus(102);
         $this->SetTimerInterval('SyncData', max(0, $this->ReadPropertyInteger('Interval')) * 1000);
+    }
+
+    public function GetConfigurationForm(): string
+    {
+        $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true, 512, JSON_THROW_ON_ERROR);
+        $certificate = trim($this->ReadPropertyString('TlsCertificate'));
+        if ($certificate !== '') {
+            foreach ($form['elements'] as $index => $field) {
+                if (($field['name'] ?? '') === 'TlsCertificateStatus') {
+                    $form['elements'][$index]['caption'] = TlsTrust::isValid($certificate)
+                        ? 'PEM certificate stored for HTTPS'
+                        : 'Stored PEM certificate is invalid or unsupported';
+                    break;
+                }
+            }
+        }
+        return json_encode($form, JSON_THROW_ON_ERROR);
+    }
+
+    /** Imports the base64 payload from SelectFile and returns the popup's error message. */
+    public function ImportTlsCertificate(string $file): string
+    {
+        if ($file === '') {
+            return $this->Translate('Select a public PEM certificate file.');
+        }
+        if (strlen($file) > 4 * intdiv(self::MAX_CERTIFICATE_FILE_SIZE + 2, 3)) {
+            return $this->Translate('The certificate file exceeds 64 KiB.');
+        }
+        $decoded = base64_decode($file, true);
+        if ($decoded === false) {
+            return $this->Translate('The file must contain only public PEM certificates supported by this PHP runtime.');
+        }
+        if (strlen($decoded) > self::MAX_CERTIFICATE_FILE_SIZE) {
+            return $this->Translate('The certificate file exceeds 64 KiB.');
+        }
+        if (strncmp($decoded, "\xEF\xBB\xBF", 3) === 0) {
+            $decoded = substr($decoded, 3);
+        }
+        $certificate = trim($decoded);
+        if ($certificate === '' || !TlsTrust::isValid($certificate)) {
+            return $this->Translate('The file must contain only public PEM certificates supported by this PHP runtime.');
+        }
+        if (IPS_HasChanges($this->InstanceID)) {
+            return $this->Translate('Apply or discard pending gateway changes before importing.');
+        }
+
+        $previous = $this->ReadPropertyString('TlsCertificate');
+        if ($certificate === $previous) {
+            return '';
+        }
+        if (IPS_SetProperty($this->InstanceID, 'TlsCertificate', $certificate) === false) {
+            return $this->Translate('The PEM certificate could not be saved.');
+        }
+        if (IPS_ApplyChanges($this->InstanceID) === false) {
+            IPS_SetProperty($this->InstanceID, 'TlsCertificate', $previous);
+            return $this->Translate('The PEM certificate could not be saved.');
+        }
+
+        $this->ReloadForm();
+        return '';
     }
 
     public function ForwardData($JSONString)
