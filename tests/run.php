@@ -184,6 +184,26 @@ try {
     SymconBlueIrisCam_CreateMediaFile($camera);
     check($media, mediaID($camera), 'Creating the stream again preserves the media ID');
 
+    $cameraLinkRequest = json_encode([
+        'DataID' => '{95E9AD15-F5B0-01C6-4FF2-9093B9BD4E36}',
+        'Buffer' => '{"cmd":"GetLink"}'
+    ], JSON_THROW_ON_ERROR);
+    check('http://127.0.0.1:' . $port, json_decode($gatewayInterface->ForwardData($cameraLinkRequest), true)['link'], 'Existing gateways default to HTTP');
+
+    $otherGatewayInterface = IPS\InstanceManager::getInstanceInterface($otherGateway);
+    foreach (['IPAddress' => '127.0.0.1', 'Port' => $port, 'Timeout' => 1, 'Protocol' => 'https'] as $name => $setting) {
+        IPS_SetProperty($otherGateway, $name, $setting);
+    }
+    IPS_ApplyChanges($otherGateway);
+    check('https://127.0.0.1:' . $port, json_decode($otherGatewayInterface->ForwardData($cameraLinkRequest), true)['link'], 'MJPEG uses the configured HTTPS scheme and port');
+    check('ERROR', BlueIrisGateway_Login($otherGateway), 'HTTPS rejects the HTTP fixture without falling back');
+    check(false, IPS_GetInstance($otherGateway)['InstanceStatus'] === 102, 'The HTTPS connection failure is visible');
+
+    IPS_SetProperty($otherGateway, 'Protocol', 'unsupported');
+    IPS_ApplyChanges($otherGateway);
+    check(201, IPS_GetInstance($otherGateway)['InstanceStatus'], 'Invalid protocols are rejected');
+    check(null, json_decode($otherGatewayInterface->ForwardData($cameraLinkRequest), true)['link'], 'Invalid protocols yield no stream URL');
+
     $setBuffer = new ReflectionMethod(IPSModule::class, 'SetBuffer');
     $setBuffer->invoke($gatewayInterface, 'BlueIrisSession', 'expired-fixture-session');
     check('fixture-session', BlueIrisGateway_Login($gateway), 'Expired session is replaced');

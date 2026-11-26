@@ -8,7 +8,8 @@
     ],
     "actions":
     [
-        { "type": "Button", "label": "Create Stream Media File", "onClick": "SymconBlueIrisCam_CreateMediaFile($id);" }
+        { "type": "Button", "label": "Create Stream Media File", "onClick": "SymconBlueIrisCam_CreateMediaFile($id);" },
+        { "type": "Button", "label": "Update Stream URL", "onClick": "if (!SymconBlueIrisCam_UpdateMediaFile($id)) { echo \"Could not update the stream URL.\"; }" }
     ],
     "status":
     [

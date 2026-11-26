@@ -265,22 +265,9 @@
                 return;
             }
 
-            $shortName = $this->ReadPropertyString("ShortName");
-            if ($shortName === '') {
+            $url = $this->GetStreamURL();
+            if ($url === null || !$this->CanOpenStream($url)) {
                 return;
-            }
-
-            $response = $this->SendDataToParent(DataMessage::encode(DataMessage::CAMERA_REQUEST, ['cmd' => 'GetLink']));
-            $stream = is_string($response) ? json_decode($response, true) : null;
-            if (!is_string($stream['link'] ?? null) || $stream['link'] === '') {
-                return;
-            }
-
-            $url = $stream['link'] . '/mjpg/' . rawurlencode($shortName) . '/video.mjpg';
-            $user = $stream['user'] ?? '';
-            $password = $stream['pw'] ?? '';
-            if (is_string($user) && $user !== '' && is_string($password) && $password !== '') {
-                $url .= '?' . http_build_query(['user' => $user, 'pw' => $password], '', '&', PHP_QUERY_RFC3986);
             }
 
             $mediaID = IPS_CreateMedia(3);
@@ -291,5 +278,76 @@
             IPS_SetName($mediaID, "Stream");
             IPS_SetParent($mediaID, $this->InstanceID);
             IPS_SetIdent($mediaID, "Stream");
+        }
+
+        public function UpdateMediaFile(): bool
+        {
+            $mediaID = @IPS_GetObjectIDByIdent("Stream", $this->InstanceID);
+            if ($mediaID === false || !IPS_MediaExists($mediaID) || IPS_GetMedia($mediaID)['MediaType'] !== 3) {
+                return false;
+            }
+
+            $url = $this->GetStreamURL();
+            if ($url === null || !$this->CanOpenStream($url)) {
+                return false;
+            }
+
+            return IPS_SetMediaFile($mediaID, $url, true);
+        }
+
+        private function GetStreamURL(): ?string
+        {
+            $shortName = $this->ReadPropertyString("ShortName");
+            if ($shortName === '') {
+                return null;
+            }
+
+            $response = $this->SendDataToParent(DataMessage::encode(DataMessage::CAMERA_REQUEST, ['cmd' => 'GetLink']));
+            $stream = is_string($response) ? json_decode($response, true) : null;
+            if (!is_string($stream['link'] ?? null) || $stream['link'] === '') {
+                return null;
+            }
+
+            $url = $stream['link'] . '/mjpg/' . rawurlencode($shortName) . '/video.mjpg';
+            $user = $stream['user'] ?? '';
+            $password = $stream['pw'] ?? '';
+            if (is_string($user) && $user !== '' && is_string($password) && $password !== '') {
+                $url .= '?' . http_build_query(['user' => $user, 'pw' => $password], '', '&', PHP_QUERY_RFC3986);
+            }
+            return $url;
+        }
+
+        private function CanOpenStream(string $url): bool
+        {
+            if (strpos($url, 'https://') !== 0) {
+                return true;
+            }
+            if (!function_exists('curl_init')) {
+                return false;
+            }
+
+            $received = false;
+            $handle = curl_init($url);
+            if ($handle === false) {
+                return false;
+            }
+            curl_setopt_array($handle, [
+                CURLOPT_CONNECTTIMEOUT => 3,
+                CURLOPT_TIMEOUT        => 5,
+                CURLOPT_FOLLOWLOCATION => false,
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYHOST => 2,
+                CURLOPT_WRITEFUNCTION  => static function ($handle, string $chunk) use (&$received): int {
+                    $received = $chunk !== '';
+                    return 0;
+                }
+            ]);
+            curl_exec($handle);
+
+            $type = (string) curl_getinfo($handle, CURLINFO_CONTENT_TYPE);
+            return $received
+                && curl_errno($handle) === CURLE_WRITE_ERROR
+                && curl_getinfo($handle, CURLINFO_HTTP_CODE) === 200
+                && stripos($type, 'multipart/x-mixed-replace') === 0;
         }
     }

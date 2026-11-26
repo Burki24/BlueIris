@@ -38,6 +38,8 @@ Dieses Modul dient zum Abrufen und Steuern einer einzeln Kamera in BlueIris.
 ## 4. Hinweise zur Verwendung
 Lege das Kameramodul über den Konfigurator an. **Create Stream Media File** legt das Stream-Medienobjekt unter der Instanz an. Ein bereits vorhandenes `Stream`-Objekt wird weiterverwendet.
 
+Nach einem Wechsel des Gateway-Protokolls, -Ports oder der Zugangsdaten aktualisiert **Stream-Adresse aktualisieren** das vorhandene Medienobjekt unter derselben ID. Bei HTTPS wird die neue Adresse vor dem Speichern mit Zertifikatsprüfung auf eine MJPEG-Antwort geprüft.
+
 ## 5. Einrichten im Modul
     
 1. Das Kürzel der Shortname wird in BlueIris definiert, dieser Dient auch diesen Modul zur verknüpfung mit der richtigen Kamera

@@ -1,5 +1,9 @@
 # Unveröffentlicht
 
+## Neu
+
+- Gateway und MJPEG-Stream können über HTTPS mit Zertifikatsprüfung verbunden werden. Vorhandene Stream-Medien lassen sich über ihre bisherige Medien-ID auf die neue Adresse umstellen.
+
 ## Fixes
 
 - Behebt veraltete PHP-Aufrufe und Parametersignaturen bei Verwendung von PHP 8.5.

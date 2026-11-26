@@ -14,6 +14,7 @@ class BlueIrisGateway extends IPSModule
 
         $this->RegisterPropertyString('IPAddress', '192.168.178.1');
         $this->RegisterPropertyInteger('Port', 81);
+        $this->RegisterPropertyString('Protocol', 'http');
         $this->RegisterPropertyInteger('Timeout', 3);
         $this->RegisterPropertyInteger('Interval', 10);
         $this->RegisterPropertyString('Username', 'admin');
@@ -27,6 +28,11 @@ class BlueIrisGateway extends IPSModule
     {
         parent::ApplyChanges();
         $this->SetBuffer('BlueIrisSession', '');
+        if ($this->GetBaseURL() === null) {
+            $this->SetTimerInterval('SyncData', 0);
+            return;
+        }
+
         $this->SetStatus(102);
         $this->SetTimerInterval('SyncData', max(0, $this->ReadPropertyInteger('Interval')) * 1000);
     }
@@ -252,14 +258,21 @@ class BlueIrisGateway extends IPSModule
         return array_key_exists('data', $body) ? json_encode($body['data'], JSON_THROW_ON_ERROR) : '{}';
     }
 
-    private function GetBaseURL(): string
+    private function GetBaseURL(): ?string
     {
+        $protocol = $this->ReadPropertyString('Protocol');
+        $port = $this->ReadPropertyInteger('Port');
+        if (!in_array($protocol, ['http', 'https'], true) || $port < 1 || $port > 65535) {
+            $this->Fail(201, 'Protokoll oder Port ist ungültig.');
+            return null;
+        }
+
         $host = $this->ReadPropertyString('IPAddress');
         if (filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false) {
             $host = '[' . $host . ']';
         }
 
-        return 'http://' . $host . ':' . $this->ReadPropertyInteger('Port');
+        return $protocol . '://' . $host . ':' . $port;
     }
 
     private function Request(string $command, array $data = [], ?string $session = null): ?array
@@ -275,8 +288,13 @@ class BlueIrisGateway extends IPSModule
             return null;
         }
 
+        $baseURL = $this->GetBaseURL();
+        if ($baseURL === null) {
+            return null;
+        }
+
         $timeout = max(1, $this->ReadPropertyInteger('Timeout'));
-        $curl = curl_init($this->GetBaseURL() . '/json');
+        $curl = curl_init($baseURL . '/json');
         if ($curl === false) {
             $this->Fail(203, 'Die Blue-Iris-Verbindung konnte nicht initialisiert werden.');
             return null;
@@ -288,6 +306,9 @@ class BlueIrisGateway extends IPSModule
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CONNECTTIMEOUT => $timeout,
             CURLOPT_TIMEOUT        => $timeout,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_HTTPHEADER     => ['Content-Type: application/json']
         ];
         if ($session !== null) {
@@ -298,7 +319,13 @@ class BlueIrisGateway extends IPSModule
         $raw = curl_exec($curl);
         if ($raw === false) {
             $transportError = curl_errno($curl);
-            $this->Fail(in_array($transportError, [CURLE_OPERATION_TIMEDOUT, CURLE_COULDNT_CONNECT], true) ? 204 : 203, 'Blue Iris ist nicht erreichbar.');
+            if (in_array($transportError, [CURLE_SSL_CACERT, CURLE_SSL_CACERT_BADFILE, CURLE_SSL_CERTPROBLEM], true)) {
+                $this->Fail(206, 'Das HTTPS-Zertifikat von Blue Iris konnte nicht geprüft werden.');
+            } elseif ($transportError === CURLE_SSL_CONNECT_ERROR) {
+                $this->Fail(206, 'Die TLS-Verbindung zu Blue Iris konnte nicht aufgebaut werden.');
+            } else {
+                $this->Fail(in_array($transportError, [CURLE_OPERATION_TIMEDOUT, CURLE_COULDNT_CONNECT], true) ? 204 : 203, 'Blue Iris ist nicht erreichbar.');
+            }
             return null;
         }
 

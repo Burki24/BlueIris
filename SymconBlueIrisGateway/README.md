@@ -36,7 +36,9 @@ Dieses Modul dient zum Abrufen und Steuern der [Blue Iris Software](https://blue
    4. Erstellen der Module über den Konfigurator
 
 ## 4. Hinweise zur Verwendung
-Dieses Modul wird durch den Konfigurator automatisch angelegt
+Dieses Modul wird durch den Konfigurator automatisch angelegt.
+
+Für HTTPS wähle **Protokoll** → **HTTPS** und trage den dafür in Blue Iris eingerichteten Port ein. Der in **IP-Adresse** eingetragene Hostname bzw. die IP-Adresse muss im Zertifikat stehen. Die ausstellende CA muss auf dem Symcon-System vertrauenswürdig sein. Bei einer fehlgeschlagenen TLS- oder Zertifikatsprüfung zeigt das Gateway einen HTTPS-Fehler an.
 
 ## 5. Einrichten im Modul
     
@@ -86,6 +88,7 @@ Eigenschaften des 'Device' für Get/SetProperty-Befehle:
 | Eigenschaft |  Typ   | Standardwert  |                                                      Funktion                                                       |
 |:-----------:|:------:|:-------------:|:-------------------------------------------------------------------------------------------------------------------:|
 |  IPAddress  | string | 192.168.178.1 |                                         IP-Adresse des BlueIris Webservers                                          |
+|  Protocol   | string |  `http`      |  `http` oder `https` für JSON-API und MJPEG                                                               |
 |    Port     |  int   |      81       |                                            Port des BlueIris Webservers                                             |
 |   Timeout   |  int   |       3       |                              Maximale Dauer pro HTTP-Anfrage in Sekunden                               |
 |  Username   | string |     admin     | Benutzername für das BlueIris Webinterface<br/>Für die konfiguration über die Webapi sind Adminrechte erforderlich! |
