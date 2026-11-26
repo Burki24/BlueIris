@@ -2,9 +2,11 @@
 [![Version](https://img.shields.io/badge/Modul%20Version-2.0-blue.svg)]()
 [![Version](https://img.shields.io/badge/Symcon%20Version-5.3%20%3E-green.svg)](https://www.symcon.de/forum/threads/30857-IP-Symcon-5-3-%28Stable%29-Changelog)
 
-# JSlive
-Die Bibiliotek dient zum verteilen der JSLive-Module im Modulstore
-Alle meine Module unter: https://github.com/Acer90/SymconModule
+# BlueIris
+
+Die Bibliothek verbindet IP-Symcon mit dem Blue-Iris-Server. Sie erkennt Kameras, zeigt Kamera- und Serverstatus an und ermöglicht Kamerasteuerung und MJPEG-Streams.
+
+Die Änderungen stehen in der [Versionshistorie](CHANGELOG.md).
 
 ## Dokumentation
 
@@ -12,7 +14,7 @@ Alle meine Module unter: https://github.com/Acer90/SymconModule
 
 1. [Funktionsumfang](#1-funktionsumfang)  
 2. [Voraussetzungen](#2-voraussetzungen)  
-3. [Lizenz](#6-lizenz)
+3. [Lizenz](#3-lizenz)
 
 ## 1. Funktionsumfang
 

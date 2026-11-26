@@ -1,0 +1,9 @@
+# Unveröffentlicht
+
+## Fixes
+
+- Behebt veraltete PHP-Aufrufe und Parametersignaturen bei Verwendung von PHP 8.5.
+- Gateway und System halten beim Start das eingestellte Abfrageintervall ein. Das Gateway beendet hängende HTTP-Anfragen und erneuert abgelaufene Sitzungen.
+- Der Konfigurator ordnet Kameras und Systeminstanzen ihrem jeweiligen Blue-Iris-Gateway zu. Bereits eingerichtete Kameras bleiben auch ohne aktuelle Erkennung sichtbar.
+- Kamerastatus wird nur an die Instanz mit dem passenden Kurznamen weitergegeben. Sonderzeichen in neu angelegten Stream-URLs werden korrekt kodiert.
+- Kamera- und Systembefehle geben die dokumentierten PTZ- und Systemoptionen korrekt an Blue Iris weiter.

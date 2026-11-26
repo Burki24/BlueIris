@@ -38,7 +38,7 @@ Werden neue Kameras in BlueIris angelegt, so können diese über dieses Modul in
 
 ## 4. Hinweise zur Verwendung
 Dieses Modul sollte nach der Installation als erstes angelegt werden.
-Nach dem Anlegen der Instance ist das Gateway zu konfigurieren.
+Nach dem Anlegen der Instanz ist das Gateway zu konfigurieren. Der Konfigurator ordnet Kameras und die Systeminstanz dem verbundenen Gateway zu. Bereits eingerichtete Kameras bleiben sichtbar, wenn Blue Iris vorübergehend keine Kameraliste liefert.
 
 ## 5. Einrichten im Modul
 

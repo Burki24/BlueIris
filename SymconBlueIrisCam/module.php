@@ -1,4 +1,9 @@
 <?php
+
+    require_once __DIR__ . '/../libs/DataMessage.php';
+
+    use BlueIris\DataMessage;
+
     // Klassendefinition
     class SymconBlueIrisCam extends IPSModule {
         public function __construct(int $InstanceID) {
@@ -14,18 +19,19 @@
             $this->RegisterPropertyString("ShortName", "");
             $this->RegisterPropertyBoolean("PTZ", false);
             $this->RegisterPropertyBoolean("showFPS", false);
+            $this->RegisterPropertyBoolean("Debug", false);
         }
         public function ApplyChanges()
         {
             //Never delete this line!
             parent::ApplyChanges();
-            $this->SetReceiveDataFilter('.*sname\\\":[ \\\"]*(' . $this->ReadPropertyString("ShortName") . '|0)[\\\”]*.*');
+            $this->SetReceiveDataFilter('');
 
             $this->RegisterVariableBoolean("isTriggered", $this->Translate("Triggered"), "~Switch", 3);
             $this->RegisterVariableBoolean("isMotion", $this->Translate("Motion"), "~Switch", 2);
 
             //create variables
-            if(!$this->ReadPropertyString("ShortName") == "Index" && !$this->ReadPropertyString("ShortName") == "@Index") {
+            if (!$this->IsIndexCamera()) {
                 $this->RegisterVariableBoolean("isAlerting", $this->Translate("Alert"), "~Switch", 1);
                 $this->RegisterVariableBoolean("isRecording", $this->Translate("Recording"), "~Switch", 4);
                 $this->RegisterVariableBoolean("isOnline", $this->Translate("Online"), "~Switch", 90);
@@ -126,7 +132,10 @@
                 case "isTriggered":
                     $this->SetValue($Ident, $Value);
                     if($Value){
-                        $this->SendDebug(__FUNCTION__, $this->Trigger(), 0);
+                        $this->Trigger();
+                        if ($this->ReadPropertyBoolean("Debug")) {
+                            $this->SendDebug(__FUNCTION__, "Aufnahme angefordert", 0);
+                        }
                     }
                     break;
                 default:
@@ -135,33 +144,44 @@
         }
         public function ReceiveData($JSONString)
         {
-            $rData = json_decode($JSONString, true);
-            $buffer = json_decode($rData["Buffer"], true);
+            $message = DataMessage::decode($JSONString, DataMessage::CAMERA_UPDATE);
+            $shortName = $this->ReadPropertyString("ShortName");
+            if (
+                $shortName === ""
+                || ($message['cmd'] ?? null) !== 'CamList'
+                || ($message['sname'] ?? null) !== $shortName
+                || !is_array($message['payload'] ?? null)
+            ) {
+                return;
+            }
 
-            switch($buffer['cmd']) {
-                case "CamList":
-                    return $this->UpdateConfig($buffer['payload']);
-                default:
-                    $this->SendDebug(__FUNCTION__, "ACTION " . $buffer['cmd'] . " FOR THIS MODULE NOT DEFINED!", 0);
-                    break;
+            $this->UpdateConfig($message['payload']);
+        }
+
+        private function IsIndexCamera(): bool
+        {
+            return in_array($this->ReadPropertyString("ShortName"), ["Index", "@Index"], true);
+        }
+
+        private function UpdateConfig(array $config): void
+        {
+            $idents = ['isMotion', 'isTriggered'];
+            if (!$this->IsIndexCamera()) {
+                $idents = array_merge($idents, ['isEnabled', 'isAlerting', 'isRecording', 'isOnline', 'isPaused', 'isNoSignal']);
+            }
+
+            foreach ($idents as $ident) {
+                $value = $config[$ident] ?? null;
+                if (is_bool($value) || in_array($value, [0, 1, '0', '1'], true)) {
+                    $this->SetValue($ident, (bool) $value);
+                }
+            }
+
+            if ($this->ReadPropertyBoolean("showFPS") && is_numeric($config['FPS'] ?? null)) {
+                $this->SetValue("FPS", (int) $config['FPS']);
             }
         }
 
-        private function UpdateConfig($config){
-            //$this->SendDebug(__FUNCTION__, json_encode($config), 0);
-            if(array_key_exists("isEnabled", $config)) $this->SetValue("isEnabled", $config["isEnabled"]);
-            if(array_key_exists("isAlerting", $config)) $this->SetValue("isAlerting", $config["isAlerting"]);
-            if(array_key_exists("isMotion", $config)) $this->SetValue("isMotion", $config["isMotion"]);
-            if(array_key_exists("isTriggered", $config)) $this->SetValue("isTriggered", $config["isTriggered"]);
-            if(array_key_exists("isRecording", $config)) $this->SetValue("isRecording", $config["isRecording"]);
-            if(array_key_exists("isOnline", $config)) $this->SetValue("isOnline", $config["isOnline"]);
-            if(array_key_exists("isPaused", $config)) $this->SetValue("isPaused", $config["isPaused"]);
-            if(array_key_exists("isNoSignal", $config)) $this->SetValue("isNoSignal", $config["isNoSignal"]);
-
-            if($this->ReadPropertyBoolean("showFPS")){
-                if(array_key_exists("FPS", $config)) $this->SetValue("FPS", $config["FPS"]);
-            }
-        }
         private function UpdateCamConfig(){
             $enable = $this->GetValue("isEnabled");
             if($this->GetValue("isPaused")){
@@ -171,12 +191,14 @@
             }
 
             $result = $this->CamConfig(null, $enable, $pause);
-            $this->SendDebug(__FUNCTION__, $result, 0);
+            if ($this->ReadPropertyBoolean("Debug")) {
+                $this->SendDebug(__FUNCTION__, "Kamerakonfiguration angefordert", 0);
+            }
 
             return $result;
         }
 
-        public function CamConfig(bool $reset = null, bool $enable = null, int $pause = null, bool $motion = null, bool $schedule = null, bool $ptzcycle = null, bool $ptzevents = null, int $alerts = null, int $record = null){
+        public function CamConfig(?bool $reset = null, ?bool $enable = null, ?int $pause = null, ?bool $motion = null, ?bool $schedule = null, ?bool $ptzcycle = null, ?bool $ptzevents = null, ?int $alerts = null, ?int $record = null){
             $camera = $this->ReadPropertyString("ShortName");
 
             $data = array();
@@ -192,13 +214,10 @@
             if(!is_null($record)) $data["record"] = $record;
 
             $sendData = array("cmd" => "CamConfig", "cam" => $camera, "data" => $data);
-            return $this->SendDataToParent(json_encode([
-                'DataID' => "{95E9AD15-F5B0-01C6-4FF2-9093B9BD4E36}",
-                'Buffer' => utf8_encode(json_encode($sendData))
-            ]));
+            return $this->SendDataToParent(DataMessage::encode(DataMessage::CAMERA_REQUEST, $sendData));
         }
 
-        public function AlertList(int $startdate = null, bool $reset = null){
+        public function AlertList(?int $startdate = null, ?bool $reset = null){
             $data = array();
             $data["camera"] = $this->ReadPropertyString("ShortName");
             if(is_null($startdate)) $startdate = 0;
@@ -208,12 +227,9 @@
             $data["reset"] = $reset;
 
             $sendData = array("cmd" => "AlertList", "data" => $data);
-            return $this->SendDataToParent(json_encode([
-                'DataID' => "{95E9AD15-F5B0-01C6-4FF2-9093B9BD4E36}",
-                'Buffer' => utf8_encode(json_encode($sendData))
-            ]));
+            return $this->SendDataToParent(DataMessage::encode(DataMessage::CAMERA_REQUEST, $sendData));
         }
-        public function ClipList(int $startdate = null, int $enddate = null, bool $tiles = null){
+        public function ClipList(?int $startdate = null, ?int $enddate = null, ?bool $tiles = null){
             $data = array();
             $data["camera"] = $this->ReadPropertyString("ShortName");
             if(is_null($startdate)) $startdate = 0;
@@ -225,56 +241,55 @@
             $data["tiles"] = $tiles;
 
             $sendData = array("cmd" => "ClipList","data" => $data);
-            return $this->SendDataToParent(json_encode([
-                'DataID' => "{95E9AD15-F5B0-01C6-4FF2-9093B9BD4E36}",
-                'Buffer' => utf8_encode(json_encode($sendData))
-            ]));
+            return $this->SendDataToParent(DataMessage::encode(DataMessage::CAMERA_REQUEST, $sendData));
         }
-        public function PTZ(int $button = 4, int $updown = null){
+        public function PTZ(int $button = 4, ?int $updown = null){
             $data = array();
             $data["camera"] = $this->ReadPropertyString("ShortName");
             $data["button"] = $button;
-            if(is_null($updown)) $updown = 0;
+            $data["updown"] = $updown ?? 0;
 
             $sendData = array("cmd" => "PTZ", "data" => $data);
-            return $this->SendDataToParent(json_encode([
-                'DataID' => "{95E9AD15-F5B0-01C6-4FF2-9093B9BD4E36}",
-                'Buffer' => utf8_encode(json_encode($sendData))
-            ]));
+            return $this->SendDataToParent(DataMessage::encode(DataMessage::CAMERA_REQUEST, $sendData));
         }
         public function Trigger(){
             $data = array();
             $data["camera"] = $this->ReadPropertyString("ShortName");
 
             $sendData = array("cmd" => "Trigger", "data" => $data);
-            return $this->SendDataToParent(json_encode([
-                'DataID' => "{95E9AD15-F5B0-01C6-4FF2-9093B9BD4E36}",
-                'Buffer' => utf8_encode(json_encode($sendData))
-            ]));
+            return $this->SendDataToParent(DataMessage::encode(DataMessage::CAMERA_REQUEST, $sendData));
         }
 
         public function CreateMediaFile(){
-            $sendData = array("cmd" => "GetLink");
-            $rData = $this->SendDataToParent(json_encode([
-                'DataID' => "{95E9AD15-F5B0-01C6-4FF2-9093B9BD4E36}",
-                'Buffer' => utf8_encode(json_encode($sendData))
-            ]));
-            if(empty($rData)) return;
-
-            $rData = json_decode($rData, true);
-
-            $MediaID = @IPS_GetObjectIDByIdent("Stream", $this->InstanceID);
-            if($MediaID === False){
-                if(!empty($rData["user"]) && !empty($rData["pw"]))
-                    $ImageFile = $rData["link"]."/mjpg/". $this->ReadPropertyString("ShortName"). "/video.mjpg?user=".$rData["user"]."&pw=".$rData["pw"]; // Image-Datei
-                else
-                    $ImageFile = $rData["link"]."/mjpg/". $this->ReadPropertyString("ShortName"). "/video.mjpg";
-
-                $MediaID = IPS_CreateMedia(3);                  // Image im MedienPool anlegen
-                IPS_SetMediaFile($MediaID, $ImageFile, true);   // Image im MedienPool mit Image-Datei verbinden
-                IPS_SetName($MediaID, "Stream"); // Medienobjekt benennen
-                IPS_SetParent($MediaID, $this->InstanceID);
-                IPS_SetIdent($MediaID, "Stream");
+            if (@IPS_GetObjectIDByIdent("Stream", $this->InstanceID) !== false) {
+                return;
             }
+
+            $shortName = $this->ReadPropertyString("ShortName");
+            if ($shortName === '') {
+                return;
+            }
+
+            $response = $this->SendDataToParent(DataMessage::encode(DataMessage::CAMERA_REQUEST, ['cmd' => 'GetLink']));
+            $stream = is_string($response) ? json_decode($response, true) : null;
+            if (!is_string($stream['link'] ?? null) || $stream['link'] === '') {
+                return;
+            }
+
+            $url = $stream['link'] . '/mjpg/' . rawurlencode($shortName) . '/video.mjpg';
+            $user = $stream['user'] ?? '';
+            $password = $stream['pw'] ?? '';
+            if (is_string($user) && $user !== '' && is_string($password) && $password !== '') {
+                $url .= '?' . http_build_query(['user' => $user, 'pw' => $password], '', '&', PHP_QUERY_RFC3986);
+            }
+
+            $mediaID = IPS_CreateMedia(3);
+            if (!IPS_SetMediaFile($mediaID, $url, true)) {
+                IPS_DeleteMedia($mediaID, false);
+                return;
+            }
+            IPS_SetName($mediaID, "Stream");
+            IPS_SetParent($mediaID, $this->InstanceID);
+            IPS_SetIdent($mediaID, "Stream");
         }
     }

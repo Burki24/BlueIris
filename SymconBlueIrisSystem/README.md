@@ -76,7 +76,7 @@ Dieses Modul sollten über den Configurator angelegt werden
   
   //Synchronisiert die AlertList-, ClipList- und LogVariable (Nur aktiv, wenn einer der 3 Eigenschaften im Modul aktiv sind!)
   //wird durch das Festgelegt Interval ausgeführt.
-  SymconBlueIrisGateway_SyncData($instanceID);
+  SymconBlueIrisSystem_SyncData($instanceID);
 
 ```
 

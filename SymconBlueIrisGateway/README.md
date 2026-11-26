@@ -55,22 +55,22 @@ Dieses Modul wird durch den Konfigurator automatisch angelegt
   $instanceID = 54321;
   
   //gibt die sessionId nach den Loginwert zurück
-  $sessionID = SymconBlueIrisGateway_Login($instanceID);
+  $sessionID = BlueIrisGateway_Login($instanceID);
   
   //Über diese Funktion, kann selbständig Daten an den BlueIris Webserver gesendet werden.
   //die ausgabe erfolgt als JSON String!
-  SymconBlueIrisGateway_SendJSONData($instanceID, string $cmd, string $json_string);
+  BlueIrisGateway_SendJSONData($instanceID, string $cmd, string $json_string);
   
   //gibt alle Cams mit Information aus
   //die ausgabe erfolgt als JSON String!
-  SymconBlueIrisGateway_CamList($instanceID, $sessionID);
+  BlueIrisGateway_CamList($instanceID, $sessionID);
   
   //Synchronisiert die BlueIris-Daten mit den Child-Instancen
   //wird durch das Festgelegt Interval ausgeführt.
-  SymconBlueIrisGateway_SyncData($instanceID);
+  BlueIrisGateway_SyncData($instanceID);
   
   //logt die Benutzer(SessionID) wieder aus
-  SymconBlueIrisGateway_Logout($instanceID, $sessionID);
+  BlueIrisGateway_Logout($instanceID, $sessionID);
 ```
 
 ## 7. Parameter / Modul-Infos
@@ -87,11 +87,11 @@ Eigenschaften des 'Device' für Get/SetProperty-Befehle:
 |:-----------:|:------:|:-------------:|:-------------------------------------------------------------------------------------------------------------------:|
 |  IPAddress  | string | 192.168.178.1 |                                         IP-Adresse des BlueIris Webservers                                          |
 |    Port     |  int   |      81       |                                            Port des BlueIris Webservers                                             |
-|   Timeout   |  int   |       3       |                              Zeit ab wann eine Abfrage abgebrochen wird (in Sekunden)                               |
+|   Timeout   |  int   |       3       |                              Maximale Dauer pro HTTP-Anfrage in Sekunden                               |
 |  Username   | string |     admin     | Benutzername für das BlueIris Webinterface<br/>Für die konfiguration über die Webapi sind Adminrechte erforderlich! |
 |  Password   | string |               |                                       Passwort für den Webinterface-Benutzer                                        |
 |  Interval   |  int   |      10       |                                           Abfrage interval (in Sekunden)                                            |
-|    Debug    |  bool  |     false     |                                    Erweitere Debug-Ausgaben in der Debug-Konsole                                    |
+|    Debug    |  bool  |     false     |                                    Zeigt bereinigte Fehlermeldungen in der Debug-Konsole                                    |
 
 ## 8. Datenaustausch
 

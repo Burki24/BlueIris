@@ -1,4 +1,9 @@
 <?php
+
+    require_once __DIR__ . '/../libs/DataMessage.php';
+
+    use BlueIris\DataMessage;
+
     // Klassendefinition
     class SymconBlueIrisSystem extends IPSModule {
         public function __construct(int $InstanceID) {
@@ -17,7 +22,7 @@
 
             $this->RegisterPropertyInteger("Interval", 60);
 
-            $this->RegisterTimer("SyncData", $this->ReadPropertyInteger("Interval"), 'SymconBlueIrisSystem_SyncData($_IPS[\'TARGET\']);');
+            $this->RegisterTimer("SyncData", 0, 'SymconBlueIrisSystem_SyncData($_IPS[\'TARGET\']);');
         }
 
         public function ApplyChanges()
@@ -64,7 +69,7 @@
             //$this->EnableAction("Profile"); //Aktuelle ohne Funktion deshalb deaktiviert!!!
 
             if($this->ReadPropertyBoolean("GetClips") || $this->ReadPropertyBoolean("GetAlerts") || $this->ReadPropertyBoolean("GetLog")){
-                $this->SetTimerInterval("SyncData", $this->ReadPropertyInteger("Interval")*1000);
+                $this->SetTimerInterval("SyncData", max(0, $this->ReadPropertyInteger("Interval")) * 1000);
             }else{
                 //timer daktivieren wenn alle 3 Schaltflächen False sind!
                 $this->SetTimerInterval("SyncData", 0);
@@ -77,9 +82,11 @@
             switch($Ident) {
                 case "Profile":
                     //Aktuelle ohne Funktion deshalb deaktiviert!!!
-                    $result = json_decode($this->Status(null, $Value), true);
-                    $this->SendDebug(__FUNCTION__, json_encode($result), 0);
-                    $this->SetValue($Ident, $result["profile"]);
+                    $response = $this->Status(null, $Value);
+                    $result = is_string($response) ? json_decode($response, true) : null;
+                    if (is_numeric($result["profile"] ?? null)) {
+                        $this->SetValue($Ident, (int) $result["profile"]);
+                    }
                     break;
                 default:
                     throw new Exception("Invalid Ident");
@@ -88,26 +95,30 @@
 
         public function ReceiveData($JSONString)
         {
-            //$this->SendDebug(__FUNCTION__, $JSONString, 0);
-            $rData = json_decode($JSONString, true);
-            $buffer = json_decode($rData["Buffer"], true);
+            $message = DataMessage::decode($JSONString, DataMessage::SYSTEM_UPDATE);
+            if (($message['cmd'] ?? null) !== 'Status' || !is_array($message['payload'] ?? null)) {
+                return;
+            }
 
-            switch($buffer['cmd']) {
-                case "Status":
-                    //Update status
-                    $this->SetValue("Profile", $buffer["payload"]["profile"]);
-                    $this->SetValue("CPU", $buffer["payload"]["cpu"]);
-                    $this->SetValue("Mem", ($buffer["payload"]["ram"] / 1024 / 1024));
-                    $this->SetValue("Uptime", $buffer["payload"]["uptime"]);
-                    $this->SetValue("Schedule", $buffer["payload"]["schedule"]);
-                    break;
-                default:
-                    $this->SendDebug(__FUNCTION__, "ACTION " . $buffer['cmd'] . " FOR THIS MODULE NOT DEFINED!", 0);
-                    break;
+            $status = $message['payload'];
+            if (is_numeric($status['profile'] ?? null)) {
+                $this->SetValue("Profile", (int) $status['profile']);
+            }
+            if (is_numeric($status['cpu'] ?? null)) {
+                $this->SetValue("CPU", (int) $status['cpu']);
+            }
+            if (is_numeric($status['ram'] ?? null)) {
+                $this->SetValue("Mem", $status['ram'] / 1024 / 1024);
+            }
+            if (is_string($status['uptime'] ?? null)) {
+                $this->SetValue("Uptime", $status['uptime']);
+            }
+            if (is_string($status['schedule'] ?? null)) {
+                $this->SetValue("Schedule", $status['schedule']);
             }
         }
 
-        public function AlertList(int $startdate = null, bool $reset = null){
+        public function AlertList(?int $startdate = null, ?bool $reset = null){
             $data = array();
             $data["camera"] = "index";
             if(is_null($startdate)) $startdate = 0;
@@ -117,12 +128,9 @@
             $data["reset"] = $reset;
 
             $sendData = array("cmd" => "AlertList", "data" => $data);
-            return $this->SendDataToParent(json_encode([
-                'DataID' => "{8AB1599B-63C9-6E0E-864E-98A562E1CBC9}",
-                'Buffer' => utf8_encode(json_encode($sendData))
-            ]));
+            return $this->SendDataToParent(DataMessage::encode(DataMessage::SYSTEM_REQUEST, $sendData));
         }
-        public function ClipList(int $startdate = null, int $enddate = null, bool $tiles = null){
+        public function ClipList(?int $startdate = null, ?int $enddate = null, ?bool $tiles = null){
             $data = array();
             $data["camera"] = "index";
             if(is_null($startdate)) $startdate = 0;
@@ -134,12 +142,9 @@
             $data["tiles"] = $tiles;
 
             $sendData = array("cmd" => "ClipList","data" => $data);
-            return $this->SendDataToParent(json_encode([
-                'DataID' => "{8AB1599B-63C9-6E0E-864E-98A562E1CBC9}",
-                'Buffer' => utf8_encode(json_encode($sendData))
-            ]));
+            return $this->SendDataToParent(DataMessage::encode(DataMessage::SYSTEM_REQUEST, $sendData));
         }
-        public function Status(int $signal = null, int $profil = null, string $dio = null, string $play = null){
+        public function Status(?int $signal = null, ?int $profil = null, ?string $dio = null, ?string $play = null){
             $data = array();
 
             if(!is_null($profil)) $data["profile"] = $profil;
@@ -148,29 +153,20 @@
             if(!is_null($play)) $data["play"] = $play;
 
             $sendData = array("cmd" => "Status","data" => $data);
-            return $this->SendDataToParent(json_encode([
-                'DataID' => "{8AB1599B-63C9-6E0E-864E-98A562E1CBC9}",
-                'Buffer' => utf8_encode(json_encode($sendData))
-            ]));
+            return $this->SendDataToParent(DataMessage::encode(DataMessage::SYSTEM_REQUEST, $sendData));
         }
         public function Log(){
             $sendData = array("cmd" => "Log");
-            return $this->SendDataToParent(json_encode([
-                'DataID' => "{8AB1599B-63C9-6E0E-864E-98A562E1CBC9}",
-                'Buffer' => utf8_encode(json_encode($sendData))
-            ]));
+            return $this->SendDataToParent(DataMessage::encode(DataMessage::SYSTEM_REQUEST, $sendData));
         }
-        public function SysConfig(bool $archive = null, bool $schedule = null){
+        public function SysConfig(?bool $archive = null, ?bool $schedule = null){
             $data = array();
             $data["camera"] = "index";
-            if(is_null($archive)) $data["archive"] = $archive;
-            if(is_null($schedule)) $data["schedule"] = $schedule;
+            if(!is_null($archive)) $data["archive"] = $archive;
+            if(!is_null($schedule)) $data["schedule"] = $schedule;
 
             $sendData = array("cmd" => "SysConfig", "data" => $data);
-            return $this->SendDataToParent(json_encode([
-                'DataID' => "{8AB1599B-63C9-6E0E-864E-98A562E1CBC9}",
-                'Buffer' => utf8_encode(json_encode($sendData))
-            ]));
+            return $this->SendDataToParent(DataMessage::encode(DataMessage::SYSTEM_REQUEST, $sendData));
         }
 
         public function SyncData(){

@@ -36,7 +36,7 @@ Dieses Modul dient zum Abrufen und Steuern einer einzeln Kamera in BlueIris.
    4. Erstellen der Module über den Konfigurator
 
 ## 4. Hinweise zur Verwendung
-Dieses Modul sollten über den Configurator angelegt werden
+Lege das Kameramodul über den Konfigurator an. **Create Stream Media File** legt das Stream-Medienobjekt unter der Instanz an. Ein bereits vorhandenes `Stream`-Objekt wird weiterverwendet.
 
 ## 5. Einrichten im Modul
     
@@ -105,7 +105,7 @@ Eigenschaften des 'Device' für Get/SetProperty-Befehle:
 | Short Name  | string |              | Kürzel der Kamera, über dieses wird die <br/>Instance mit der BlueIris Kamera verknüpft |
 |   Use PTZ   |  bool  |    false     |     Ist dieser Eigenschaft aktiv, so werden zusätzliche Variablen für PTZ angelegt.     |
 |  Show FPS   |  bool  |    false     |      Ist dieser Eigenschaft aktiv, wird zusätzlich die FPS der kamera mit ausgeben      |
-|    Debug    |  bool  |    false     |                      Erweitere Debug-Ausgaben in der Debug-Konsole                      |
+|    Debug    |  bool  |    false     |                      Zeigt Diagnosemeldungen zu Kameraaktionen in der Debug-Konsole                      |
 
 ## 8. Datenaustausch
 

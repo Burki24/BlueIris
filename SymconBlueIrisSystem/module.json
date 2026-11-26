@@ -7,6 +7,7 @@
 	[
 		"BlueIris System"
 	],
+    "url": "https://github.com/Burki24/BlueIris/tree/master/SymconBlueIrisSystem",
     "parentRequirements": ["{8AB1599B-63C9-6E0E-864E-98A562E1CBC9}"],
     "childRequirements": [],
     "implemented": ["{8AD9F950-FFB3-1BE8-5B4C-1C603EB9887E}"],
